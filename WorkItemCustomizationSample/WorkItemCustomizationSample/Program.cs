@@ -37,7 +37,7 @@ namespace WorkItemCustomizationSample
 
             VssConnection connection = new VssConnection(new Uri(accountUrl), new VssClientCredentials());
 
-            string workItemTypeName = "Bug";
+            string workItemTypeName = "Task";
             string fieldName = "StringField";
 
             // todo add sample for picklist field
@@ -86,9 +86,11 @@ namespace WorkItemCustomizationSample
                 Type = Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.FieldType.String
             };
 
-            // add the fields to the derived type
-            AddField(connection, field, process, derivedTypeRefName);
+            // add the field to the derived type
+            var processWorkItemTypeField = AddFieldToWorkItemType(connection, field, process, derivedTypeRefName);
 
+            // add the field as a control on the layout
+            AddFieldToWorkItemTypeLayout(connection, process, processWorkItemTypeField, derivedTypeRefName);
         }
 
         private static TeamProject GetProject(VssConnection connection, string projectName)
@@ -153,24 +155,6 @@ namespace WorkItemCustomizationSample
             return processClient.AddFieldToWorkItemTypeAsync(request, process.Id, workItemTypeRefName).Result;
         }
 
-        private static FormLayout GetLayout(VssConnection connection, Process process, string witRefName)
-        {
-            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
-            return processDefinitionClient.GetFormLayoutAsync(process.Id, witRefName).Result;
-        }
-
-        private static Group CreateGroup(VssConnection connection, Group group, Process process, string witRefName, string pageId, string sectionId)
-        {
-            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
-            return processDefinitionClient.AddGroupAsync(group, process.Id, witRefName, pageId, sectionId).Result;
-        }
-
-        private static Control SetFieldInGroup(VssConnection connection, Control control, Process process, string witRefName, string groupId, string controlId)
-        {
-            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
-            return processDefinitionClient.MoveControlToGroupAsync(control, process.Id, witRefName, groupId, controlId).Result;
-        }
-
         private static bool TryGetWorkItemType(List<WorkItemTypeModel> types, string typeName, out WorkItemTypeModel type)
         {
             type = types.FirstOrDefault(x => x.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
@@ -193,7 +177,7 @@ namespace WorkItemCustomizationSample
             return workClient.GetFieldAsync(fieldName).Result;
         }
 
-        private static void AddField(VssConnection connection, WorkItemField field, Process process, string workItemTypeRefName)
+        private static ProcessWorkItemTypeField AddFieldToWorkItemType(VssConnection connection, WorkItemField field, Process process, string workItemTypeRefName)
         {
             // if field does not exist add field to process
             WorkItemField workItemField = null;
@@ -218,7 +202,88 @@ namespace WorkItemCustomizationSample
                 workItemField = GetField(connection, field.Name);
             }
 
-            AddFieldToWorkItemType(connection, workItemField, workItemTypeRefName, process);
+            return AddFieldToWorkItemType(connection, workItemField, workItemTypeRefName, process);
+        }
+
+        private static void AddFieldToWorkItemTypeLayout(VssConnection connection, Process process, ProcessWorkItemTypeField field, string workItemTypeRefName)
+        {
+            FormLayout layout = GetLayout(connection, process, workItemTypeRefName);
+
+            Group customGroup = null;
+
+            // look for the custom group
+            foreach (var page in layout.Pages)
+            {
+                foreach (var section in page.Sections)
+                {
+                    foreach (var group in section.Groups)
+                    {
+                        if (group.Label.Equals("custom", StringComparison.OrdinalIgnoreCase))
+                        {
+                            customGroup = group;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // create the group since it does not exist
+            if (customGroup == null)
+            {
+                Group group = new Group()
+                {
+                    Label = "Custom",
+                    Visible = true
+                };
+
+                var firstPage = layout.Pages[0];
+                var lastSection = firstPage.Sections.LastOrDefault(x => x.Groups.Count > 0);
+
+                customGroup = CreateGroup(connection, group, process, workItemTypeRefName, firstPage.Id, lastSection.Id);
+            }
+
+            // check if field already exists in the group
+            Control fieldControl = null;
+            foreach (var control in customGroup.Controls)
+            {
+                if (control.Id.Equals(field.ReferenceName, StringComparison.OrdinalIgnoreCase))
+                {
+                    fieldControl = control;
+                    break;
+                }
+            }
+
+            // add the field to the group
+            if (fieldControl == null)
+            {
+                Control control = new Control()
+                {
+                    Id = field.ReferenceName,
+                    ReadOnly = true,
+                    Label = field.Name,
+                    Visible = true
+                };
+
+                SetFieldInGroup(connection, control, process, workItemTypeRefName, customGroup.Id, field.ReferenceName);
+            }
+        }
+
+        private static Control SetFieldInGroup(VssConnection connection, Control control, Process process, string witRefName, string groupId, string controlId)
+        {
+            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
+            return processDefinitionClient.MoveControlToGroupAsync(control, process.Id, witRefName, groupId, controlId).Result;
+        }
+
+        private static FormLayout GetLayout(VssConnection connection, Process process, string witRefName)
+        {
+            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
+            return processDefinitionClient.GetFormLayoutAsync(process.Id, witRefName).Result;
+        }
+
+        private static Group CreateGroup(VssConnection connection, Group group, Process process, string witRefName, string pageId, string sectionId)
+        {
+            var processDefinitionClient = connection.GetClient<WorkItemTrackingProcessHttpClient>();
+            return processDefinitionClient.AddGroupAsync(group, process.Id, witRefName, pageId, sectionId).Result;
         }
     }
 }
