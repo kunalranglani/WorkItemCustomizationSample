@@ -1,6 +1,6 @@
 # WorkItemCustomizationSample
 
-Sample C# console app for adding a new field and associating it with a work item type
+Sample C# console app for adding a new field and associating it with a work item type for a Azure DevOps project
 
 ```bash
 .\WorkItemCustomizationSample.exe --help
