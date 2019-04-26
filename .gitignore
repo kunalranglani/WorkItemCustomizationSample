@@ -3,3 +3,9 @@
 ################################################################################
 
 /WorkItemCustomizationSample/.vs/WorkItemCustomizationSample/v16/Server/sqlite3
+*.suo
+/WorkItemCustomizationSample/WorkItemCustomizationSample/bin/Debug/netcoreapp2.1
+/WorkItemCustomizationSample/WorkItemCustomizationSample/obj
+/WorkItemCustomizationSample/.vs
+/WorkItemCustomizationSample/packages
+/WorkItemCustomizationSample/WorkItemCustomizationSample/bin/Debug
