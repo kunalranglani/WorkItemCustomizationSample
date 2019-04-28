@@ -9,7 +9,7 @@ using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.WebApi;
-using SimpleConsoleLogger.Static;
+using SimpleConsoleLogger;
 
 namespace WorkItemCustomizationSample
 {
@@ -30,10 +30,10 @@ namespace WorkItemCustomizationSample
 
             result.WithNotParsed((e) =>
             {
-                Logger.LogError("Usage: WorkItemCustomizationSample.exe -a yourAccountUrl -p yourPojectName -c yourAreaPathName -g yourGroupName", true);
+                ConsoleLogger.LogError("Usage: WorkItemCustomizationSample.exe -a yourAccountUrl -p yourPojectName -c yourAreaPathName -g yourGroupName", true);
             });
 
-            Logger.Log("You might see a login screen if you have never signed in to your account using this app.");
+            ConsoleLogger.Log("You might see a login screen if you have never signed in to your account using this app.");
 
             VssConnection connection = new VssConnection(new Uri(accountUrl), new VssClientCredentials());
 
@@ -42,23 +42,23 @@ namespace WorkItemCustomizationSample
 
             // todo add sample for picklist field
 
-            Logger.Log("Getting team project");
+            ConsoleLogger.Log("Getting team project");
             // Get the team project
             TeamProject project = GetProject(connection, projectName);
 
-            Logger.Log($"Getting process for team project {project.Name}");
+            ConsoleLogger.Log($"Getting process for team project {project.Name}");
             Process process = GetProcess(connection, project);
 
             if (process.Type != ProcessType.Inherited)
             {
-                Logger.LogError("The process is not an inherited process.", true);
+                ConsoleLogger.LogError("The process is not an inherited process.", true);
             }
 
             List<WorkItemTypeModel> workItemTypes = GetProcessWorkItemTypes(connection, process);
 
             if (!TryGetWorkItemType(workItemTypes, workItemTypeName, out WorkItemTypeModel workItemType))
             {
-                Logger.LogError("The work item type does not exist.", true);
+                ConsoleLogger.LogError("The work item type does not exist.", true);
             }
 
             string systemTypeRefName = null;
@@ -77,7 +77,7 @@ namespace WorkItemCustomizationSample
             // since the derived type doesnt exists in the process. Lets add one.
             if (string.IsNullOrEmpty(derivedTypeRefName))
             {
-                Logger.Log("Derived work item type does not exit. Creating a new derived work item type");
+                ConsoleLogger.Log("Derived work item type does not exit. Creating a new derived work item type");
                 ProcessWorkItemType type = CreateWorkItemType(connection, process, workItemType);
 
                 derivedTypeRefName = type.ReferenceName;
@@ -92,11 +92,11 @@ namespace WorkItemCustomizationSample
             // add the field to the derived type
             var processWorkItemTypeField = AddFieldToWorkItemType(connection, field, process, derivedTypeRefName);
 
-            Logger.Log("Adding field as a control to the layout");
+            ConsoleLogger.Log("Adding field as a control to the layout");
             // add the field as a control on the layout
             AddFieldToWorkItemTypeLayout(connection, process, processWorkItemTypeField, derivedTypeRefName);
 
-            Logger.LogSuccess("Field was successfully added to the work item type and layout");
+            ConsoleLogger.LogSuccess("Field was successfully added to the work item type and layout");
         }
 
         private static TeamProject GetProject(VssConnection connection, string projectName)
@@ -191,7 +191,7 @@ namespace WorkItemCustomizationSample
             try
             {
                 workItemField = GetField(connection, field.Name);
-                Logger.Log($"Field {field.Name} already exists.");
+                ConsoleLogger.Log($"Field {field.Name} already exists.");
             }
             catch (Exception e)
             {
@@ -205,13 +205,13 @@ namespace WorkItemCustomizationSample
                     Type = field.Type
                 };
 
-                Logger.Log($"Field {field.Name} does not exist. Creating the field..");
+                ConsoleLogger.Log($"Field {field.Name} does not exist. Creating the field..");
 
                 CreateField(connection, workItemField, process);
                 workItemField = GetField(connection, field.Name);
             }
 
-            Logger.Log($"Adding field to the work item type");
+            ConsoleLogger.Log($"Adding field to the work item type");
             return AddFieldToWorkItemType(connection, workItemField, workItemTypeRefName, process);
         }
 
@@ -249,12 +249,12 @@ namespace WorkItemCustomizationSample
                 var firstPage = layout.Pages[0];
                 var lastSection = firstPage.Sections.LastOrDefault(x => x.Groups.Count > 0);
 
-                Logger.Log("Creating a group Custom to put the field control in");
+                ConsoleLogger.Log("Creating a group Custom to put the field control in");
                 customGroup = CreateGroup(connection, group, process, workItemTypeRefName, firstPage.Id, lastSection.Id);
             }
             else
             {
-                Logger.Log("Layout group Custom already exists on the work item type");
+                ConsoleLogger.Log("Layout group Custom already exists on the work item type");
             }
 
             // check if field already exists in the group
@@ -279,12 +279,12 @@ namespace WorkItemCustomizationSample
                     Visible = true
                 };
 
-                Logger.Log("Adding the field control to the group");
+                ConsoleLogger.Log("Adding the field control to the group");
                 SetFieldInGroup(connection, control, process, workItemTypeRefName, customGroup.Id, field.ReferenceName);
             }
             else
             {
-                Logger.Log("Field already added to layout.");
+                ConsoleLogger.Log("Field already added to layout.");
             }
         }
 
